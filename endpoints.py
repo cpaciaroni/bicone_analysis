@@ -3,18 +3,16 @@ import csv
 import re
 import sys
 import pandas as pd
-sys.path.append("../ana")
-sys.path.append("../filter/")
-sys.path.append("../sim_work/")
 import dsphelper
 import filters as filter
 import numpy as np
 import analysis_library as al
 
-def getEndpointWave(anty, dirc='/u/home/s/swissel/slac/t510/endpoint/Mag_2400A_Run2_Pol_001ns_Endpoint_2/', NFFT=None, window=None):
-
+def getEndpointWave(anty, dirc='/Users/Caroline/Desktop/bicones/VHF_Sims/', NFFT=None, window=None):
+	
 	headers, endpoints = getAllEndpoints(dirc, NFFT=NFFT, window=window)
-
+	#print "back at getEndpointWave"
+	
 	# choose the cherenkov cone waveform
 	chidx = ''
 	for idx in headers.index:
@@ -30,6 +28,7 @@ def getEndpointWave(anty, dirc='/u/home/s/swissel/slac/t510/endpoint/Mag_2400A_R
 
 def getInfoFromName(fname, refract=True):
         # remove path name:
+        #print 'at get info from name'
         name = re.split('\/', fname)[-1]
         m = re.search("Endpoint_([-+]?\d+)G_(\d+\.\d*)GeV_(\d+)e_([-+]?\d+)-([-+]?\d+)-([-+]?\d+)_(\d+)_Antenna(\d+).dat", name)
 	
@@ -46,7 +45,7 @@ def getInfoFromName(fname, refract=True):
 		antenna = int(m.group(8))
         except:
 		m = re.search("Endpoint_([-+]?\d+)A_(\d+\.\d*)GeV_(\d+)e_([-+]?\d+)-([-+]?\d+)-([-+]?\d+)_(\d+)_Antenna(\d+).dat", name)
- 		current = int(m.group(1))
+		current = int(m.group(1))
 		bfield = -0.38165104 * float(current) + 0.25708565
                 energy = float(m.group(2))
                 electrons = int(m.group(3))
@@ -60,11 +59,12 @@ def getInfoFromName(fname, refract=True):
         
 def readEndpointFiles(fname, norm=131.e-12/1.602e-19/5000., NFFT=None, refract=True, window=None, vector_potential=False ):
         #print "Reading endpoint file ", fname 
-	time = []
+        time = []
         Ex = [];Ey=[];Ez=[];
         with open(fname, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter='\t', quotechar='|')
             for row in reader:
+                
                 time.append(float(row[0])*1e-9)
 		# 
 		#first: arrival time at antenna in ns
@@ -76,9 +76,15 @@ def readEndpointFiles(fname, norm=131.e-12/1.602e-19/5000., NFFT=None, refract=T
 		# z vertical to beam axis
 		# y along beam
 		# x horizontal to beam axis
+																
+		#changed following Anne's simulations: 
+		# z along beam
+		# y vertical to beam axis
+		# x horizontal to beam axis
+		# sims: t, Ex, Ey, Ez
                 Ex.append(norm*float(row[1]))
-                Ez.append(norm*float(row[2]))
-                Ey.append(norm*float(row[3]))
+                Ey.append(norm*float(row[2]))
+                Ez.append(norm*float(row[3]))
 
 	Ex = np.array(Ex)
 	Ey = np.array(Ey)
@@ -124,17 +130,18 @@ def readEndpointFiles(fname, norm=131.e-12/1.602e-19/5000., NFFT=None, refract=T
        
         return {'header': header, 'wave': pd.DataFrame({'time':time, 'Ex':Ex, 'Ey':Ey, 'Ez':Ez, 'Ev':Ev, 'Eh':Eh}, index=time), 'fd': pd.DataFrame({'freq':fr, 'Ex':FEx, 'Ey':FEy, 'Ez':FEz, 'Ev':FEv, 'Eh':FEh}, index=fr)}
 
-def getAllEndpoints(dirc ="/u/home/s/swissel/slac/t510/endpoint/Mag_2400A_Run2_Pol_001ns_Endpoint_2/", NFFT=None, window=None, norm=131.e-12/1.602e-19/5000.,  vector_potential=False ):
-    files = glob.glob(dirc+"/*.dat")
+def getAllEndpoints(dirc ='/Users/Caroline/Desktop/bicones/VHF_Sims/', NFFT=None, window=None, norm=131.e-12/1.602e-19/5000.,  vector_potential=False ):
+    files = glob.glob(dirc+"/Endpoint*.dat")
 
     epts = []
     names = []
     headers = []
-    for fname in files:        
+    for fname in files:   
             ep = readEndpointFiles(fname, NFFT=NFFT, window=window, norm=norm, vector_potential=vector_potential)
             epts.append(ep)
             names.append(ep['header']['name'])
             headers.append(ep['header'])
+    #print 'get all Endpoints:'
     headers = pd.DataFrame(headers, index=names)
     endpoints = pd.DataFrame(epts, index=names)
     return headers, endpoints
